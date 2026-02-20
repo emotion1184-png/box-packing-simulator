@@ -1,0 +1,69 @@
+/* app/assets/style.css */
+
+/* 전역 스타일 */
+.main-header {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1f77b4;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.card {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Streamlit 메트릭 커스터마이징 */
+.stMetric {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 버튼 스타일 */
+.stButton > button {
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* 탭 스타일 */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px 8px 0 0;
+    padding: 0.5rem 1rem;
+}
+
+/* 사이드바 스타일 */
+section[data-testid="stSidebar"] {
+    background-color: #f0f2f6;
+}
+
+/* 데이터프레임 스타일 */
+.dataframe {
+    border-radius: 8px;
+    overflow: hidden;
+}
