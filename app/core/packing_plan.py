@@ -43,15 +43,17 @@ def calculate_packing_plan(
                 num_trials
             )
             
-            # 각 제품별로 몇 개씩 담았는지 집계
-            packed_by_sku = {}
+            # 모델별로 몇 개씩 담았는지 집계
+            packed_by_product = {}
             for item in result.fitted_items:
-                packed_by_sku[item.sku] = packed_by_sku.get(item.sku, 0) + 1
+                packed_by_product[item.product_id] = (
+                    packed_by_product.get(item.product_id, 0) + 1
+                )
             
             box_capacities[pack_box.name] = {
                 'pack_box': pack_box,
                 'result': result,
-                'packed_by_sku': packed_by_sku,
+                'packed_by_product': packed_by_product,
                 'total_packed': result.total_fitted_count,
                 'fill_ratio': result.fill_ratio,
                 'box_volume': pack_box.inner_volume()
@@ -63,7 +65,7 @@ def calculate_packing_plan(
         return None
     
     # 남은 수량 추적
-    remaining = {prod.sku: qty for prod, qty in product_requirements}
+    remaining = {prod.product_id: qty for prod, qty in product_requirements}
     
     plan = PackingPlan()
     
@@ -81,8 +83,8 @@ def calculate_packing_plan(
         for box_name, capacity in box_capacities.items():
             # 현재 남은 제품들에 대해 이 박스로 몇 개 담을 수 있는지
             can_pack = 0
-            for sku, packed_qty in capacity['packed_by_sku'].items():
-                can_pack += min(packed_qty, remaining.get(sku, 0))
+            for product_id, packed_qty in capacity['packed_by_product'].items():
+                can_pack += min(packed_qty, remaining.get(product_id, 0))
             
             if can_pack == 0:
                 continue
@@ -108,11 +110,11 @@ def calculate_packing_plan(
         plan.total_volume += capacity['box_volume']
         
         # 남은 수량 업데이트
-        for sku, packed_qty in capacity['packed_by_sku'].items():
-            if sku in remaining:
-                remaining[sku] -= packed_qty
-                if remaining[sku] < 0:
-                    remaining[sku] = 0
+        for product_id, packed_qty in capacity['packed_by_product'].items():
+            if product_id in remaining:
+                remaining[product_id] -= packed_qty
+                if remaining[product_id] < 0:
+                    remaining[product_id] = 0
     
     # 모두 담았는지 확인
     plan.all_packed = all(qty == 0 for qty in remaining.values())

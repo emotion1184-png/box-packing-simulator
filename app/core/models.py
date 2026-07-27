@@ -24,12 +24,20 @@ class ProductBox(BaseModel):
     """제품박스 모델"""
     sku: str = Field(..., description="SKU")
     name: str = Field(..., description="제품명")
+    model: Optional[str] = Field(None, description="제품 모델명")
+    category: Optional[str] = Field(None, description="제품 대분류")
+    series: Optional[str] = Field(None, description="제품 시리즈")
     l: float = Field(..., gt=0, description="길이(mm)")
     w: float = Field(..., gt=0, description="너비(mm)")
     h: float = Field(..., gt=0, description="높이(mm)")
     weight: Optional[float] = Field(None, description="중량(kg)")
     rotatable: bool = Field(True, description="회전 허용 여부")
     note: Optional[str] = Field(None, description="비고")
+
+    @property
+    def product_id(self) -> str:
+        """모델이 있으면 모델을, 없으면 SKU를 고유 선택 키로 사용."""
+        return self.model.strip() if self.model and self.model.strip() else self.sku
 
     def volume(self) -> float:
         return self.l * self.w * self.h
@@ -43,7 +51,9 @@ class PaddingConfig(BaseModel):
 
 class PackingItem(BaseModel):
     """적치된 아이템 정보"""
+    product_id: str
     sku: str
+    model: Optional[str] = None
     name: str
     position: tuple[float, float, float]  # (x, y, z)
     dimension: tuple[float, float, float]  # (l, w, h) 회전 후
@@ -54,7 +64,7 @@ class PackingResult(BaseModel):
     pack_box_name: str
     effective_dimension: tuple[float, float, float]  # 유효 내경
     fitted_items: list[PackingItem]
-    unfitted_items: list[dict]  # {sku, name, qty}
+    unfitted_items: list[dict]  # {product_id, sku, model, name, qty}
     fill_ratio: float
     used_volume: float
     remaining_volume: float

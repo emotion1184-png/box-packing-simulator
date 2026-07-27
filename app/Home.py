@@ -167,7 +167,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # 빠른 시작 가이드
 st.markdown("### 🚀 Quick Start")
 st.markdown("""
-1. **Upload Data** - Import your box data via Excel (sidebar) or use sample data
+1. **Upload Data** - Import the Excel `리스트` sheet (the `타워` sheet is ignored)
 2. **Pack Simulator** - Select a packaging box and products to simulate packing
 3. **Box Recommender** - Find the best box for your product combination
 4. **Export Results** - Download CSV or HTML with 3D visualization
@@ -175,7 +175,7 @@ st.markdown("""
 
 # 사이드바 - 데이터 관리
 from core.storage import DataStorage
-from core.models import PackBox, ProductBox
+from core.excel_loader import load_catalog
 import pandas as pd
 import io
 
@@ -187,39 +187,20 @@ storage = DataStorage()
 uploaded_file = st.sidebar.file_uploader("📥 Upload Excel", type=['xlsx', 'xls'])
 if uploaded_file:
     try:
-        pack_df = pd.read_excel(uploaded_file, sheet_name='pack_boxes')
-        product_df = pd.read_excel(uploaded_file, sheet_name='product_boxes')
-        
-        # 포장박스 로드
-        for _, row in pack_df.iterrows():
-            box = PackBox(
-                name=row['name'],
-                inner_L=float(row['inner_L']),
-                inner_W=float(row['inner_W']),
-                inner_H=float(row['inner_H']),
-                outer_L=float(row['outer_L']),
-                outer_W=float(row['outer_W']),
-                outer_H=float(row['outer_H']),
-                max_weight=float(row.get('max_weight', 0)) if pd.notna(row.get('max_weight')) else None,
-                note=str(row.get('note', '')) if pd.notna(row.get('note')) else None
-            )
-            storage.add_pack_box(box)
-        
-        # 제품박스 로드
-        for _, row in product_df.iterrows():
-            prod = ProductBox(
-                sku=row['sku'],
-                name=row['name'],
-                l=float(row['l']),
-                w=float(row['w']),
-                h=float(row['h']),
-                weight=float(row.get('weight', 0)) if pd.notna(row.get('weight')) else None,
-                rotatable=bool(row.get('rotatable', True)),
-                note=str(row.get('note', '')) if pd.notna(row.get('note')) else None
-            )
-            storage.add_product_box(prod)
-        
-        st.sidebar.success(f"✅ Loaded: {len(pack_df)} boxes, {len(product_df)} products")
+        catalog = load_catalog(uploaded_file)
+        storage.apply_catalog(catalog)
+
+        skipped_message = (
+            f" / skipped {catalog.skipped_product_rows} invalid row(s)"
+            if catalog.skipped_product_rows
+            else ""
+        )
+        st.sidebar.success(
+            f"✅ Loaded '{catalog.product_sheet}': "
+            f"{len(catalog.product_boxes)} models{skipped_message}"
+        )
+        if catalog.product_sheet == "리스트":
+            st.sidebar.caption("Only the '리스트' sheet was imported. '타워' was ignored.")
     except Exception as e:
         st.sidebar.error(f"❌ Upload error: {e}")
 
@@ -242,9 +223,13 @@ if st.sidebar.button("📤 Download Current Data"):
             'note': box.note or ''
         })
     
-    product_data = []
+    list_data = []
     for prod in product_boxes:
-        product_data.append({
+        list_data.append({
+            '대분류': prod.category or '',
+            '시리즈': prod.series or '',
+            '길이': '',
+            '모델': prod.model or prod.sku,
             'sku': prod.sku,
             'name': prod.name,
             'l': prod.l,
@@ -258,7 +243,7 @@ if st.sidebar.button("📤 Download Current Data"):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         pd.DataFrame(pack_data).to_excel(writer, sheet_name='pack_boxes', index=False)
-        pd.DataFrame(product_data).to_excel(writer, sheet_name='product_boxes', index=False)
+        pd.DataFrame(list_data).to_excel(writer, sheet_name='리스트', index=False)
     
     st.sidebar.download_button(
         label="💾 Download Excel",
@@ -271,7 +256,18 @@ if st.sidebar.button("📤 Download Current Data"):
 st.sidebar.markdown("---")
 col1, col2 = st.sidebar.columns(2)
 col1.metric("Packaging Boxes", len(storage.get_pack_boxes()))
-col2.metric("Product Boxes", len(storage.get_product_boxes()))
+col2.metric("Models", len(storage.get_product_boxes()))
+
+catalog_status = st.session_state.get("catalog_status", {})
+if catalog_status.get("product_sheet"):
+    st.sidebar.caption(
+        f"Product source: {catalog_status['product_sheet']} sheet"
+    )
+if catalog_status.get("skipped_product_rows"):
+    st.sidebar.warning(
+        f"{catalog_status['skipped_product_rows']} row(s) without valid box dimensions "
+        "were excluded."
+    )
 
 # 시작 안내
 st.info("👈 Select **Pack Simulator** or **Box Recommender** from the sidebar to get started!")

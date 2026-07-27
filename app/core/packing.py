@@ -23,16 +23,19 @@ def run_packing_simulation(
     
     # Box3D 객체 생성
     boxes_to_pack = []
-    for prod, qty in product_selections:
+    product_by_item_name = {}
+    for product_index, (prod, qty) in enumerate(product_selections):
         for i in range(qty):
+            item_name = f"product_{product_index}_{i}"
             box = Box3D(
-                name=f"{prod.sku}_{i+1}",
+                name=item_name,
                 l=prod.l,
                 w=prod.w,
                 h=prod.h,
                 rotatable=prod.rotatable
             )
             boxes_to_pack.append(box)
+            product_by_item_name[item_name] = prod
     
     # 패킹 수행
     packed, unfitted = pack_boxes_optimized(
@@ -44,16 +47,12 @@ def run_packing_simulation(
     # PackingItem 변환
     fitted_items = []
     for item in packed:
-        sku = item.name.rsplit('_', 1)[0]
-        prod_name = ""
-        for prod, _ in product_selections:
-            if prod.sku == sku:
-                prod_name = prod.name
-                break
-        
+        prod = product_by_item_name[item.name]
         fitted_items.append(PackingItem(
-            sku=sku,
-            name=prod_name,
+            product_id=prod.product_id,
+            sku=prod.sku,
+            model=prod.model,
+            name=prod.name,
             position=item.position,
             dimension=item.dimension,
             rotation_type=item.rotation
@@ -62,15 +61,16 @@ def run_packing_simulation(
     # 미적치 집계
     unfitted_count = {}
     for box in unfitted:
-        sku = box.name.rsplit('_', 1)[0]
-        if sku not in unfitted_count:
-            prod_name = ""
-            for prod, _ in product_selections:
-                if prod.sku == sku:
-                    prod_name = prod.name
-                    break
-            unfitted_count[sku] = {'sku': sku, 'name': prod_name, 'qty': 0}
-        unfitted_count[sku]['qty'] += 1
+        prod = product_by_item_name[box.name]
+        if prod.product_id not in unfitted_count:
+            unfitted_count[prod.product_id] = {
+                'product_id': prod.product_id,
+                'sku': prod.sku,
+                'model': prod.model,
+                'name': prod.name,
+                'qty': 0,
+            }
+        unfitted_count[prod.product_id]['qty'] += 1
     
     unfitted_list = list(unfitted_count.values())
     
