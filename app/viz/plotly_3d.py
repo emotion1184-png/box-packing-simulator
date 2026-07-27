@@ -51,11 +51,11 @@ def create_3d_visualization(result: PackingResult, show_labels: bool = True) -> 
     color_idx = 0
     
     for item in result.fitted_items:
-        if item.sku not in sku_color_map:
-            sku_color_map[item.sku] = colors[color_idx % len(colors)]
+        if item.product_id not in sku_color_map:
+            sku_color_map[item.product_id] = colors[color_idx % len(colors)]
             color_idx += 1
-        
-        color = sku_color_map[item.sku]
+
+        color = sku_color_map[item.product_id]
         x0, y0, z0 = item.position
         l, w, h = item.dimension
         
@@ -77,6 +77,7 @@ def create_3d_visualization(result: PackingResult, show_labels: bool = True) -> 
         k = [2,3,4,5,5,6,6,7,7,6,4,7]
         
         hover_text = (f"<b>{item.name}</b><br>"
+                     f"Model: {item.model or item.product_id}<br>"
                      f"SKU: {item.sku}<br>"
                      f"Size: {l:.0f} × {w:.0f} × {h:.0f} mm<br>"
                      f"Position: ({x0:.0f}, {y0:.0f}, {z0:.0f})<br>"
@@ -89,7 +90,7 @@ def create_3d_visualization(result: PackingResult, show_labels: bool = True) -> 
             i=i, j=j, k=k,
             color=color,
             opacity=0.7,
-            name=f"{item.sku}",
+            name=f"{item.model or item.product_id}",
             text=hover_text,
             hoverinfo='text',
             showlegend=True

@@ -1,11 +1,10 @@
-"""
-데이터 저장소 (Excel 기반)
-"""
+"""데이터 저장소 (Excel 기반)."""
+
 import streamlit as st
-import pandas as pd
 from typing import List
 from pathlib import Path
 
+from core.excel_loader import CatalogLoadResult, load_catalog
 from core.models import PackBox, ProductBox
 
 
@@ -19,53 +18,23 @@ class DataStorage:
     def _load_from_excel(self):
         """엑셀에서 데이터 로딩"""
 
-        excel_path = Path("data/box_data.xlsx")
+        excel_path = Path(__file__).resolve().parents[2] / "data" / "box_data.xlsx"
 
         if not excel_path.exists():
             st.error("data/box_data.xlsx 파일이 없습니다.")
             st.stop()
 
         try:
-            pack_df = pd.read_excel(excel_path, sheet_name="pack_boxes")
-            prod_df = pd.read_excel(excel_path, sheet_name="product_boxes")
+            catalog = load_catalog(excel_path)
         except Exception as e:
             st.error(f"엑셀 로딩 오류: {e}")
             st.stop()
 
-        pack_boxes: List[PackBox] = []
-        product_boxes: List[ProductBox] = []
+        if catalog.pack_boxes is None:
+            st.error("기본 데이터에 'pack_boxes' 시트가 없습니다.")
+            st.stop()
 
-        for _, row in pack_df.iterrows():
-            pack_boxes.append(
-                PackBox(
-                    name=str(row["name"]),
-                    inner_L=float(row["inner_L"]),
-                    inner_W=float(row["inner_W"]),
-                    inner_H=float(row["inner_H"]),
-                    outer_L=float(row["outer_L"]),
-                    outer_W=float(row["outer_W"]),
-                    outer_H=float(row["outer_H"]),
-                    max_weight=float(row["max_weight"]) if not pd.isna(row["max_weight"]) else None,
-                    note=str(row["note"]) if not pd.isna(row["note"]) else "",
-                )
-            )
-
-        for _, row in prod_df.iterrows():
-            product_boxes.append(
-                ProductBox(
-                    sku=str(row["sku"]),
-                    name=str(row["name"]),
-                    l=float(row["L"]),
-                    w=float(row["W"]),
-                    h=float(row["H"]),
-                    weight=float(row["weight"]) if not pd.isna(row["weight"]) else 0,
-                    rotatable=bool(row["rotatable"]),
-                    note=str(row["note"]) if not pd.isna(row["note"]) else "",
-                )
-            )
-
-        st.session_state.pack_boxes = pack_boxes
-        st.session_state.product_boxes = product_boxes
+        self.apply_catalog(catalog)
 
     def get_pack_boxes(self) -> List[PackBox]:
         return st.session_state.pack_boxes
@@ -82,19 +51,42 @@ class DataStorage:
         st.session_state.pack_boxes.append(box)
 
     def add_product_box(self, prod: ProductBox):
-        existing = [p for p in st.session_state.product_boxes if p.sku == prod.sku]
+        existing = [
+            p
+            for p in st.session_state.product_boxes
+            if p.product_id == prod.product_id
+        ]
         if existing:
             st.session_state.product_boxes = [
-                p for p in st.session_state.product_boxes if p.sku != prod.sku
+                p
+                for p in st.session_state.product_boxes
+                if p.product_id != prod.product_id
             ]
         st.session_state.product_boxes.append(prod)
+
+    def replace_pack_boxes(self, boxes: List[PackBox]):
+        st.session_state.pack_boxes = list(boxes)
+
+    def replace_product_boxes(self, products: List[ProductBox]):
+        st.session_state.product_boxes = list(products)
+
+    def apply_catalog(self, catalog: CatalogLoadResult):
+        if catalog.pack_boxes is not None:
+            self.replace_pack_boxes(catalog.pack_boxes)
+        self.replace_product_boxes(catalog.product_boxes)
+        st.session_state.catalog_status = {
+            "product_sheet": catalog.product_sheet,
+            "skipped_product_rows": catalog.skipped_product_rows,
+        }
 
     def delete_pack_box(self, name: str):
         st.session_state.pack_boxes = [
             b for b in st.session_state.pack_boxes if b.name != name
         ]
 
-    def delete_product_box(self, sku: str):
+    def delete_product_box(self, product_id: str):
         st.session_state.product_boxes = [
-            p for p in st.session_state.product_boxes if p.sku != sku
+            p
+            for p in st.session_state.product_boxes
+            if p.product_id != product_id
         ]
